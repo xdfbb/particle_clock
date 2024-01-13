@@ -64,14 +64,12 @@ class SceneState extends State<Scene> with SingleTickerProviderStateMixin {
   @override
   void didUpdateWidget(Scene oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.time != widget.time ||
-        oldWidget.brightness != widget.brightness) {
+    if (oldWidget.time != widget.time || oldWidget.brightness != widget.brightness) {
       _fx!.setTime(widget.time);
       _bgFx!.setTime(widget.time);
 
       // Change palette every 15th second to keep things interesting.
-      if (widget.time!.second % 15 == 0 ||
-          oldWidget.brightness != widget.brightness) {
+      if (widget.time!.second % 15 == 0 || oldWidget.brightness != widget.brightness) {
         _updatePalette();
       }
     }
@@ -111,7 +109,12 @@ class SceneState extends State<Scene> with SingleTickerProviderStateMixin {
         child: Stack(
           children: <Widget>[
             _buildBgBlurFx(),
-            _buildClockFace(),
+            Center(
+              child: AspectRatio(
+                aspectRatio: 5 / 3,
+                child: _buildClockFace(),
+              ),
+            ),
             CustomPaint(
               painter: ClockFxPainter(fx: _fx),
               child: Container(),
@@ -134,7 +137,7 @@ class SceneState extends State<Scene> with SingleTickerProviderStateMixin {
           ),
           BackdropFilter(
             filter: ImageFilter.blur(
-              sigmaX: widget.size!.width * .05,
+              sigmaX: widget.size!.width * .01,
               sigmaY: 0,
             ),
             // filter: ImageFilter.blur(sigmaX: 0, sigmaY: 0),

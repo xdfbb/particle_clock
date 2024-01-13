@@ -1,9 +1,10 @@
 import 'dart:io';
 
-import 'package:flutter_clock_helper/customizer.dart';
-import 'package:flutter_clock_helper/model.dart';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:particle_clock/utils/customizer.dart';
+import 'package:particle_clock/utils/model.dart';
 
 import 'particle_clock.dart';
 
@@ -16,6 +17,5 @@ void main() {
     // See https://github.com/flutter/flutter/wiki/Desktop-shells#target-platform-override.
     debugDefaultTargetPlatformOverride = TargetPlatform.fuchsia;
   }
-
   runApp(ClockCustomizer((ClockModel model) => ParticleClock(model)));
 }
