@@ -236,7 +236,7 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
 
   Future<Weather> _getCurrentWeather() async {
     Position position = await _determinePosition();
-    WeatherFactory weatherFactory = new WeatherFactory("441530dfe9317ce7b337ace7e68c6f7e");
+    WeatherFactory weatherFactory = new WeatherFactory("");
     return await weatherFactory.currentWeatherByLocation(position.latitude, position.longitude);
   }
 
