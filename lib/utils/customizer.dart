@@ -2,9 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:fullscreen_window/fullscreen_window.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:one_clock/one_clock.dart';
+import 'package:intl/intl.dart';
+import 'package:weather/weather.dart';
 
 import 'model.dart';
 
@@ -43,11 +48,23 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
   final _model = ClockModel();
   ThemeMode? _themeMode = ThemeMode.light;
   bool _configButtonShown = false;
+  late Weather weatherInfo;
+  bool _weatherInfoAvailable = false;
+  String weatherIcon = '';
+  String address = '';
 
   @override
   void initState() {
     super.initState();
     _model.addListener(_handleModelChange);
+    _getCurrentWeather().then((weather) {
+      setState(() {
+        _weatherInfoAvailable = true;
+        weatherInfo = weather;
+        weatherIcon = weather.weatherIcon!;
+        address = weather.areaName! + ', ' + weather.country!;
+      });
+    });
   }
 
   @override
@@ -59,8 +76,7 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
 
   void _handleModelChange() => setState(() {});
 
-  Widget _enumMenu<T>(
-      String label, T value, List<T> items, ValueChanged<T?> onChanged) {
+  Widget _enumMenu<T>(String label, T value, List<T> items, ValueChanged<T?> onChanged) {
     return InputDecorator(
       decoration: InputDecoration(
         labelText: label,
@@ -93,8 +109,7 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
     );
   }
 
-  Widget _textField(
-      String currentValue, String label, ValueChanged<String> onChanged) {
+  Widget _textField(String currentValue, String label, ValueChanged<String> onChanged) {
     return TextField(
       decoration: InputDecoration(
         hintText: currentValue,
@@ -112,45 +127,52 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
           child: SingleChildScrollView(
             child: Column(
               children: <Widget>[
-                _textField(_model.location, 'Location', (String location) {
+                // _textField(_model.location, 'Location', (String location) {
+                //   setState(() {
+                //     _model.location = location;
+                //   });
+                // }),
+                // _textField(_model.temperature.toString(), 'Temperature', (String temperature) {
+                //   setState(() {
+                //     _model.temperature = double.parse(temperature);
+                //   });
+                // }),
+                // _enumMenu<ThemeMode?>('Theme', _themeMode, ThemeMode.values.toList()..remove(ThemeMode.system),
+                //     (ThemeMode? mode) {
+                //   setState(() {
+                //     _themeMode = mode;
+                //   });
+                // }),
+                // _switch('24-hour format', _model.is24HourFormat, (bool value) {
+                //   setState(() {
+                //     debugPrint('FullScreenWindow.setFullScreen(true)');
+                //     FullScreenWindow.setFullScreen(true);
+                //     _model.is24HourFormat = value;
+                //   });
+                // }),
+                _switch('Show weather', _model.showWeather, (bool value) {
                   setState(() {
-                    _model.location = location;
+                    debugPrint('Show weather');
+                    _model.showWeather = value;
                   });
                 }),
-                _textField(_model.temperature.toString(), 'Temperature',
-                    (String temperature) {
+                _switch('Show time', _model.showTime, (bool value) {
                   setState(() {
-                    _model.temperature = double.parse(temperature);
+                    debugPrint('Show time');
+                    _model.showTime = value;
                   });
                 }),
-                _enumMenu<ThemeMode?>('Theme', _themeMode,
-                    ThemeMode.values.toList()..remove(ThemeMode.system),
-                    (ThemeMode? mode) {
-                  setState(() {
-                    _themeMode = mode;
-                  });
-                }),
-                _switch('24-hour format', _model.is24HourFormat, (bool value) {
-                  setState(() {
-                    debugPrint('FullScreenWindow.setFullScreen(true)');
-                    FullScreenWindow.setFullScreen(true);
-                    _model.is24HourFormat = value;
-                  });
-                }),
-                _enumMenu<WeatherCondition?>(
-                    'Weather', _model.weatherCondition, WeatherCondition.values,
-                    (WeatherCondition? condition) {
-                  setState(() {
-                    _model.weatherCondition = condition;
-                  });
-                }),
-                _enumMenu<TemperatureUnit?>(
-                    'Units', _model.unit, TemperatureUnit.values,
-                    (TemperatureUnit? unit) {
-                  setState(() {
-                    _model.unit = unit;
-                  });
-                }),
+                // _enumMenu<WeatherCondition?>('Weather', _model.weatherCondition, WeatherCondition.values,
+                //     (WeatherCondition? condition) {
+                //   setState(() {
+                //     _model.weatherCondition = condition;
+                //   });
+                // }),
+                // _enumMenu<TemperatureUnit?>('Units', _model.unit, TemperatureUnit.values, (TemperatureUnit? unit) {
+                //   setState(() {
+                //     _model.unit = unit;
+                //   });
+                // }),
               ],
             ),
           ),
@@ -162,27 +184,69 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
   Widget _configButton() {
     return Builder(
       builder: (BuildContext context) {
-        return
-          SafeArea(child: IconButton(
-            icon: Icon(Icons.settings),
-            tooltip: 'Configure clock',
-            onPressed: () {
-              Scaffold.of(context).openEndDrawer();
-              setState(() {
-                _configButtonShown = false;
-              });
-            },
-          ));
+        return SafeArea(
+            child: IconButton(
+          icon: Icon(Icons.settings),
+          tooltip: 'Configure clock',
+          onPressed: () {
+            Scaffold.of(context).openEndDrawer();
+            setState(() {
+              _configButtonShown = false;
+            });
+          },
+        ));
       },
     );
+  }
+
+  Future<Position> _determinePosition() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+    // Test if location services are enabled.
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      // Location services are not enabled don't continue
+      // accessing the position and request users of the
+      // App to enable the location services.
+      return Future.error('Location services are disabled.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        // Permissions are denied, next time you could try
+        // requesting permissions again (this is also where
+        // Android's shouldShowRequestPermissionRationale
+        // returned true. According to Android guidelines
+        // your App should show an explanatory UI now.
+        return Future.error('Location permissions are denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      // Permissions are denied forever, handle appropriately.
+      return Future.error('Location permissions are permanently denied, we cannot request permissions.');
+    }
+
+    // When we reach here, permissions are granted and we can
+    // continue accessing the position of the device.
+    return await Geolocator.getCurrentPosition();
+  }
+
+  Future<Weather> _getCurrentWeather() async {
+    Position position = await _determinePosition();
+    WeatherFactory weatherFactory = new WeatherFactory("441530dfe9317ce7b337ace7e68c6f7e");
+    return await weatherFactory.currentWeatherByLocation(position.latitude, position.longitude);
   }
 
   @override
   Widget build(BuildContext context) {
     final clock = Center(
-      child:  widget._clock(_model),
+      child: widget._clock(_model),
     );
     final height = MediaQuery.of(context).size.height;
+    final textTheme = Theme.of(context).textTheme;
 
     return MaterialApp(
       theme: ThemeData.light(),
@@ -206,6 +270,77 @@ class _ClockCustomizerState extends State<ClockCustomizer> {
               fit: StackFit.expand,
               children: [
                 clock,
+                _model.showTime
+                    ? SafeArea(
+                        child: Align(
+                            alignment: MediaQuery.of(context).orientation == Orientation.landscape
+                                ? Alignment.centerRight
+                                : Alignment.topCenter,
+                            child: DigitalClock(
+                                padding: MediaQuery.of(context).orientation == Orientation.landscape
+                                    ? EdgeInsets.fromLTRB(30, 0, 30, 0)
+                                    : EdgeInsets.fromLTRB(0, 30, 0, 30),
+                                showSeconds: true,
+                                isLive: true,
+                                textScaleFactor: 1.5,
+                                digitalClockTextColor: Colors.white,
+                                datetime: DateTime.now())))
+                    : Container(),
+                _model.showWeather
+                    ? SafeArea(
+                        child: Align(
+                        alignment: MediaQuery.of(context).orientation == Orientation.landscape
+                            ? Alignment.centerLeft
+                            : Alignment.bottomCenter,
+                        child: !_weatherInfoAvailable
+                            ? Container()
+                            : Container(
+                                padding: MediaQuery.of(context).orientation == Orientation.landscape
+                                    ? EdgeInsets.fromLTRB(30, 0, 30, 0)
+                                    : EdgeInsets.fromLTRB(0, 30, 0, 30),
+                                child: Column(
+                                  mainAxisAlignment: MediaQuery.of(context).orientation == Orientation.landscape
+                                      ? MainAxisAlignment.center
+                                      : MainAxisAlignment.end,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment: MediaQuery.of(context).orientation == Orientation.landscape
+                                          ? MainAxisAlignment.start
+                                          : MainAxisAlignment.center,
+                                      children: [
+                                        CachedNetworkImage(
+                                            imageUrl: "http://openweathermap.org/img/w/" + weatherIcon + ".png"),
+                                        Text(weatherInfo.temperature!.celsius!.toInt().toString() + '°C',
+                                            style: textTheme.displaySmall),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MediaQuery.of(context).orientation == Orientation.landscape
+                                          ? MainAxisAlignment.start
+                                          : MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                            'L:' +
+                                                weatherInfo.tempMin!.celsius!.toInt().toString() +
+                                                '°C H:' +
+                                                weatherInfo.tempMax!.celsius!.toInt().toString() +
+                                                '°C',
+                                            style: textTheme.bodyMedium),
+                                      ],
+                                    ),
+                                    Row(
+                                      mainAxisAlignment: MediaQuery.of(context).orientation == Orientation.landscape
+                                          ? MainAxisAlignment.start
+                                          : MainAxisAlignment.center,
+                                      children: [
+                                        Text(address, style: textTheme.bodyLarge),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                      ))
+                    : Container(),
                 if (_configButtonShown)
                   Positioned(
                     top: 0,

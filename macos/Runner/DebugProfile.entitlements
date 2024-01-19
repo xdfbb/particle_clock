@@ -8,5 +8,12 @@
 	<true/>
 	<key>com.apple.security.network.server</key>
 	<true/>
+	<key>com.apple.security.personal-information.location</key>
+	<true/>
+	<key>NSLocationTemporaryUsageDescriptionDictionary</key>
+	<dict>
+		<key>need location info</key>
+		<string>The App requires temporary access to the device&amp;apos;s precise location.</string>
+	</dict>
 </dict>
 </plist>

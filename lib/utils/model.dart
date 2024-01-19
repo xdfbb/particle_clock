@@ -4,6 +4,7 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 /// This is the model that contains the customization options for the clock.
 ///
@@ -13,6 +14,24 @@ import 'package:flutter/material.dart';
 ///
 /// Contestants: Do not edit this.
 class ClockModel extends ChangeNotifier {
+  bool get showWeather => _showWeather;
+  bool _showWeather = true;
+
+  set showWeather(bool value) {
+    if (_showWeather != value) {
+      _showWeather = value;
+    }
+  }
+
+  bool get showTime => _showTime;
+  bool _showTime = true;
+
+  set showTime(bool value) {
+    if (_showTime != value) {
+      _showTime = value;
+    }
+  }
+
   bool get is24HourFormat => _is24HourFormat;
   bool _is24HourFormat = true;
   set is24HourFormat(bool is24HourFormat) {
